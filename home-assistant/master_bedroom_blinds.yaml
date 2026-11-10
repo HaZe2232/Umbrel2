@@ -1,0 +1,96 @@
+# Master Bedroom Motionblinds schedule
+#
+#   8:30 PM  -> close all blinds halfway (position 50)
+#  10:15 PM  -> close all blinds fully
+#   9:00 AM  -> open all blinds
+#
+# Safety check for the two closing steps: if any blind is in a position other
+# than fully open or fully closed (for example someone set it by hand), the
+# closing step is skipped. The 10:15 PM step also accepts the halfway position
+# the 8:30 PM step sets, or it would never run after 8:30.
+#
+# How to install: Settings > Automations & Scenes > Create Automation >
+# 3-dot menu > Edit in YAML, paste this file in, and save.
+#
+# Check the entity IDs below match yours: Settings > Devices & services >
+# Motionblinds > (blind) > the "cover." entity.
+
+alias: Master Bedroom Blinds Schedule
+description: >-
+  Halfway at 8:30 PM, fully closed at 10:15 PM, open at 9:00 AM. Closing is
+  skipped if any blind has been moved to an in-between position.
+mode: single
+
+variables:
+  blinds:
+    - cover.back_left
+    - cover.back_middle
+    - cover.back_right
+    - cover.slider
+  # Positions: 0 = closed, 100 = open. A small tolerance absorbs motor drift.
+  tolerance: 2
+  halfway: 50
+
+triggers:
+  - trigger: time
+    at: "20:30:00"
+    id: halfway
+  - trigger: time
+    at: "22:15:00"
+    id: close
+  - trigger: time
+    at: "09:00:00"
+    id: open
+
+actions:
+  - choose:
+      # 8:30 PM: every blind must be fully open or fully closed
+      - conditions:
+          - condition: trigger
+            id: halfway
+          - condition: template
+            value_template: >-
+              {% set ns = namespace(ok=true) %}
+              {% for b in blinds %}
+                {% set p = state_attr(b, 'current_position') | int(-1) %}
+                {% if not ((0 <= p <= tolerance) or (p >= 100 - tolerance)) %}
+                  {% set ns.ok = false %}
+                {% endif %}
+              {% endfor %}
+              {{ ns.ok }}
+        sequence:
+          - action: cover.set_cover_position
+            target:
+              entity_id: "{{ blinds }}"
+            data:
+              position: "{{ halfway }}"
+
+      # 10:15 PM: every blind must be open, closed, or at the 8:30 halfway spot
+      - conditions:
+          - condition: trigger
+            id: close
+          - condition: template
+            value_template: >-
+              {% set ns = namespace(ok=true) %}
+              {% for b in blinds %}
+                {% set p = state_attr(b, 'current_position') | int(-1) %}
+                {% if not ((0 <= p <= tolerance)
+                           or (p >= 100 - tolerance)
+                           or ((p - halfway) | abs <= tolerance)) %}
+                  {% set ns.ok = false %}
+                {% endif %}
+              {% endfor %}
+              {{ ns.ok }}
+        sequence:
+          - action: cover.close_cover
+            target:
+              entity_id: "{{ blinds }}"
+
+      # 9:00 AM: always open
+      - conditions:
+          - condition: trigger
+            id: open
+        sequence:
+          - action: cover.open_cover
+            target:
+              entity_id: "{{ blinds }}"
