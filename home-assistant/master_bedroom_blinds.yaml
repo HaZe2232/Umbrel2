@@ -28,7 +28,7 @@ variables:
     - cover.honeycombblind_0003  # check: Back Right
     - cover.honeycombblind_0004  # check: Slider
   # Positions: 0 = closed, 100 = open. A small tolerance absorbs motor drift.
-  tolerance: 2
+  tolerance: 10
   halfway: 50
 
 triggers:
