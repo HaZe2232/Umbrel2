@@ -23,10 +23,10 @@ mode: single
 
 variables:
   blinds:
-    - cover.back_left
-    - cover.back_middle
-    - cover.back_right
-    - cover.slider
+    - cover.honeycombblind_0001  # Back Left
+    - cover.honeycombblind_0002  # check: Back Middle
+    - cover.honeycombblind_0003  # check: Back Right
+    - cover.honeycombblind_0004  # check: Slider
   # Positions: 0 = closed, 100 = open. A small tolerance absorbs motor drift.
   tolerance: 2
   halfway: 50
