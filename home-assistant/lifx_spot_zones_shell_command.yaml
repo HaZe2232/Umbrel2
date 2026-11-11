@@ -1,0 +1,30 @@
+# Exact per-zone colour control for LIFX Spot lights (used by script.garden_paint_zones).
+# Finds every LIFX light on the network and sets zone 1/2/3 of each Spot to the
+# three colours given as "hue,saturation,brightness,kelvin"; ms = fade time.
+shell_command:
+  lifx_spot_zones: |-
+    python3 -c "
+    import asyncio, sys
+    from lifx import discover, MatrixLight, HSBK
+    def c(s):
+        h, sa, b, k = s.split(',')
+        return HSBK(hue=float(h), saturation=float(sa)/100, brightness=float(b)/100, kelvin=int(float(k)))
+    cols = [c(a) for a in sys.argv[1:4]]
+    ms = int(sys.argv[4])
+    done = []
+    async def paint(d):
+        try:
+            async with d:
+                if isinstance(d, MatrixLight):
+                    await d.set_matrix_colors(0, cols, duration=ms)
+                    done.append(d.serial)
+        except Exception as e:
+            print('fail', getattr(d, 'serial', '?'), e)
+    async def main():
+        tasks = []
+        async for d in discover(timeout=5):
+            tasks.append(asyncio.create_task(paint(d)))
+        await asyncio.gather(*tasks)
+        print('painted', len(done), done)
+    asyncio.run(main())
+    " {{ z1 }} {{ z2 }} {{ z3 }} {{ ms }}
