@@ -4,32 +4,31 @@
 #  10:15 PM  -> close all blinds fully
 #   9:00 AM  -> open all blinds
 #
-# Safety check for the two closing steps: if any blind is in a position other
-# than fully open or fully closed (for example someone set it by hand), the
-# closing step is skipped. The 10:15 PM step also accepts the halfway position
-# the 8:30 PM step sets, or it would never run after 8:30.
+# The two closing steps are skipped while the helper
+# binary_sensor.master_bedroom_blinds_off_position is ON, i.e. a blind sits
+# somewhere other than open, closed or halfway (each +/-20%). That helper is a
+# Template binary sensor created in the HA UI (Settings > Helpers), with this
+# state template:
 #
-# How to install: Settings > Automations & Scenes > Create Automation >
-# 3-dot menu > Edit in YAML, paste this file in, and save.
+#   {% set tol = 20 %}{% set ns = namespace(odd=false) %}
+#   {% for b in ['cover.honeycombblind_0001','cover.honeycombblind_0002',
+#                'cover.honeycombblind_0003','cover.honeycombblind_0004'] %}
+#     {% set p = state_attr(b, 'current_position') | int(-1) %}
+#     {% if not ((0 <= p <= tol) or (p >= 100 - tol) or ((p - 50) | abs <= tol)) %}
+#       {% set ns.odd = true %}
+#     {% endif %}
+#   {% endfor %}{{ ns.odd }}
 #
-# Check the entity IDs below match yours: Settings > Devices & services >
-# Motionblinds > (blind) > the "cover." entity.
+# Keeping the check in a helper means the automation itself has only plain
+# conditions, so it reads cleanly in the visual editor.
 
 alias: Master Bedroom Blinds Schedule
 description: >-
-  Halfway at 8:30 PM, fully closed at 10:15 PM, open at 9:00 AM. Closing is
-  skipped if any blind has been moved to an in-between position.
+  Halfway at 8:30 PM, fully closed at 10:15 PM, open at 9:00 AM. The two
+  closing steps are skipped while 'Master Bedroom Blinds Off Position' is on.
 mode: single
-
-variables:
-  blinds:
-    - cover.honeycombblind_0001  # Back Left
-    - cover.honeycombblind_0002  # check: Back Middle
-    - cover.honeycombblind_0003  # check: Back Right
-    - cover.honeycombblind_0004  # check: Slider
-  # Positions: 0 = closed, 100 = open. A small tolerance absorbs motor drift.
-  tolerance: 10
-  halfway: 50
+trace:
+  stored_traces: 20
 
 triggers:
   - trigger: time
@@ -44,53 +43,41 @@ triggers:
 
 actions:
   - choose:
-      # 8:30 PM: every blind must be fully open or fully closed
-      - conditions:
+      - alias: 8:30 PM — halfway (skipped if a blind is at an odd position)
+        conditions:
           - condition: trigger
             id: halfway
-          - condition: template
-            value_template: >-
-              {% set ns = namespace(ok=true) %}
-              {% for b in blinds %}
-                {% set p = state_attr(b, 'current_position') | int(-1) %}
-                {% if not ((0 <= p <= tolerance) or (p >= 100 - tolerance)) %}
-                  {% set ns.ok = false %}
-                {% endif %}
-              {% endfor %}
-              {{ ns.ok }}
+          - condition: state
+            entity_id: binary_sensor.master_bedroom_blinds_off_position
+            state: "off"
         sequence:
           - action: cover.set_cover_position
             target:
-              entity_id: "{{ blinds }}"
+              entity_id: &blinds
+                - cover.honeycombblind_0001
+                - cover.honeycombblind_0002
+                - cover.honeycombblind_0003
+                - cover.honeycombblind_0004
             data:
-              position: "{{ halfway }}"
+              position: 50
 
-      # 10:15 PM: every blind must be open, closed, or at the 8:30 halfway spot
-      - conditions:
+      - alias: 10:15 PM — close (skipped if a blind is at an odd position)
+        conditions:
           - condition: trigger
             id: close
-          - condition: template
-            value_template: >-
-              {% set ns = namespace(ok=true) %}
-              {% for b in blinds %}
-                {% set p = state_attr(b, 'current_position') | int(-1) %}
-                {% if not ((0 <= p <= tolerance)
-                           or (p >= 100 - tolerance)
-                           or ((p - halfway) | abs <= tolerance)) %}
-                  {% set ns.ok = false %}
-                {% endif %}
-              {% endfor %}
-              {{ ns.ok }}
+          - condition: state
+            entity_id: binary_sensor.master_bedroom_blinds_off_position
+            state: "off"
         sequence:
           - action: cover.close_cover
             target:
-              entity_id: "{{ blinds }}"
+              entity_id: *blinds
 
-      # 9:00 AM: always open
-      - conditions:
+      - alias: 9:00 AM — open
+        conditions:
           - condition: trigger
             id: open
         sequence:
           - action: cover.open_cover
             target:
-              entity_id: "{{ blinds }}"
+              entity_id: *blinds
