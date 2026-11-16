@@ -1,6 +1,7 @@
 # Master Bedroom Motionblinds schedule
 #
-#   8:30 PM  -> close all blinds halfway (position 50)
+#   8:30 PM  -> blinds still up go halfway (position 50); blinds already
+#               down (20% or less) are left down
 #  10:15 PM  -> close all blinds fully
 #   9:00 AM  -> open all blinds
 #
@@ -43,7 +44,7 @@ triggers:
 
 actions:
   - choose:
-      - alias: 8:30 PM — halfway (skipped if a blind is at an odd position)
+      - alias: 8:30 PM — halfway for blinds still up; leave closed ones down
         conditions:
           - condition: trigger
             id: halfway
@@ -51,15 +52,54 @@ actions:
             entity_id: binary_sensor.master_bedroom_blinds_off_position
             state: "off"
         sequence:
-          - action: cover.set_cover_position
-            target:
-              entity_id: &blinds
-                - cover.honeycombblind_0001
-                - cover.honeycombblind_0002
-                - cover.honeycombblind_0003
-                - cover.honeycombblind_0004
-            data:
-              position: 50
+          - alias: Back Left → halfway if above 20%
+            if:
+              - condition: numeric_state
+                entity_id: cover.honeycombblind_0001
+                attribute: current_position
+                above: 20
+            then:
+              - action: cover.set_cover_position
+                target:
+                  entity_id: cover.honeycombblind_0001
+                data:
+                  position: 50
+          - alias: Back Middle → halfway if above 20%
+            if:
+              - condition: numeric_state
+                entity_id: cover.honeycombblind_0002
+                attribute: current_position
+                above: 20
+            then:
+              - action: cover.set_cover_position
+                target:
+                  entity_id: cover.honeycombblind_0002
+                data:
+                  position: 50
+          - alias: Back Right → halfway if above 20%
+            if:
+              - condition: numeric_state
+                entity_id: cover.honeycombblind_0003
+                attribute: current_position
+                above: 20
+            then:
+              - action: cover.set_cover_position
+                target:
+                  entity_id: cover.honeycombblind_0003
+                data:
+                  position: 50
+          - alias: Slider → halfway if above 20%
+            if:
+              - condition: numeric_state
+                entity_id: cover.honeycombblind_0004
+                attribute: current_position
+                above: 20
+            then:
+              - action: cover.set_cover_position
+                target:
+                  entity_id: cover.honeycombblind_0004
+                data:
+                  position: 50
 
       - alias: 10:15 PM — close (skipped if a blind is at an odd position)
         conditions:
@@ -71,7 +111,11 @@ actions:
         sequence:
           - action: cover.close_cover
             target:
-              entity_id: *blinds
+              entity_id: &blinds
+                - cover.honeycombblind_0001
+                - cover.honeycombblind_0002
+                - cover.honeycombblind_0003
+                - cover.honeycombblind_0004
 
       - alias: 9:00 AM — open
         conditions:
