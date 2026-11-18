@@ -1,17 +1,17 @@
 # Master Bedroom Motionblinds schedule
 #
 #   8:30 PM  -> blinds still up go halfway (position 50); blinds already
-#               down (20% or less) are left down
+#               down (15% or less) are left down
 #  10:15 PM  -> close all blinds fully
 #   9:00 AM  -> open all blinds
 #
 # The two closing steps are skipped while the helper
 # binary_sensor.master_bedroom_blinds_off_position is ON, i.e. a blind sits
-# somewhere other than open, closed or halfway (each +/-20%). That helper is a
+# somewhere other than open, closed or halfway (each +/-15%). That helper is a
 # Template binary sensor created in the HA UI (Settings > Helpers), with this
 # state template:
 #
-#   {% set tol = 20 %}{% set ns = namespace(odd=false) %}
+#   {% set tol = 15 %}{% set ns = namespace(odd=false) %}
 #   {% for b in ['cover.honeycombblind_0001','cover.honeycombblind_0002',
 #                'cover.honeycombblind_0003','cover.honeycombblind_0004'] %}
 #     {% set p = state_attr(b, 'current_position') | int(-1) %}
@@ -52,48 +52,48 @@ actions:
             entity_id: binary_sensor.master_bedroom_blinds_off_position
             state: "off"
         sequence:
-          - alias: Back Left → halfway if above 20%
+          - alias: Back Left → halfway if above 15%
             if:
               - condition: numeric_state
                 entity_id: cover.honeycombblind_0001
                 attribute: current_position
-                above: 20
+                above: 15
             then:
               - action: cover.set_cover_position
                 target:
                   entity_id: cover.honeycombblind_0001
                 data:
                   position: 50
-          - alias: Back Middle → halfway if above 20%
+          - alias: Back Middle → halfway if above 15%
             if:
               - condition: numeric_state
                 entity_id: cover.honeycombblind_0002
                 attribute: current_position
-                above: 20
+                above: 15
             then:
               - action: cover.set_cover_position
                 target:
                   entity_id: cover.honeycombblind_0002
                 data:
                   position: 50
-          - alias: Back Right → halfway if above 20%
+          - alias: Back Right → halfway if above 15%
             if:
               - condition: numeric_state
                 entity_id: cover.honeycombblind_0003
                 attribute: current_position
-                above: 20
+                above: 15
             then:
               - action: cover.set_cover_position
                 target:
                   entity_id: cover.honeycombblind_0003
                 data:
                   position: 50
-          - alias: Slider → halfway if above 20%
+          - alias: Slider → halfway if above 15%
             if:
               - condition: numeric_state
                 entity_id: cover.honeycombblind_0004
                 attribute: current_position
-                above: 20
+                above: 15
             then:
               - action: cover.set_cover_position
                 target:
