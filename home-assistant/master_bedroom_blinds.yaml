@@ -1,21 +1,25 @@
 # Master Bedroom Motionblinds schedule
 #
-#   8:30 PM  -> blinds still up go halfway (position 50); blinds already
+#   8:30 PM  -> blinds still up go halfway (50%; the Slider's halfway is
+#               62%); blinds already
 #               down (15% or less) are left down
 #  10:15 PM  -> close all blinds fully
 #   9:00 AM  -> open all blinds
 #
 # The two closing steps are skipped while the helper
 # binary_sensor.master_bedroom_blinds_off_position is ON, i.e. a blind sits
-# somewhere other than open, closed or halfway (each +/-15%). That helper is a
+# somewhere other than open, closed or its halfway (each +/-15%; halfway
+# is 50% except the Slider, 62%). That helper is a
 # Template binary sensor created in the HA UI (Settings > Helpers), with this
 # state template:
 #
-#   {% set tol = 15 %}{% set ns = namespace(odd=false) %}
+#   {% set tol = 15 %}{% set half = {'cover.honeycombblind_0004': 62} %}
+#   {% set ns = namespace(odd=false) %}
 #   {% for b in ['cover.honeycombblind_0001','cover.honeycombblind_0002',
 #                'cover.honeycombblind_0003','cover.honeycombblind_0004'] %}
 #     {% set p = state_attr(b, 'current_position') | int(-1) %}
-#     {% if not ((0 <= p <= tol) or (p >= 100 - tol) or ((p - 50) | abs <= tol)) %}
+#     {% set h = half.get(b, 50) %}
+#     {% if not ((0 <= p <= tol) or (p >= 100 - tol) or ((p - h) | abs <= tol)) %}
 #       {% set ns.odd = true %}
 #     {% endif %}
 #   {% endfor %}{{ ns.odd }}
@@ -88,7 +92,7 @@ actions:
                   entity_id: cover.honeycombblind_0003
                 data:
                   position: 50
-          - alias: Slider → halfway if above 15%
+          - alias: Slider → 62% (its halfway) if above 15%
             if:
               - condition: numeric_state
                 entity_id: cover.honeycombblind_0004
@@ -99,7 +103,7 @@ actions:
                 target:
                   entity_id: cover.honeycombblind_0004
                 data:
-                  position: 50
+                  position: 62
 
       - alias: 10:15 PM — close (skipped if a blind is at an odd position)
         conditions:
