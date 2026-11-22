@@ -9,17 +9,18 @@
 # The two closing steps are skipped while the helper
 # binary_sensor.master_bedroom_blinds_off_position is ON, i.e. a blind sits
 # somewhere other than open, closed or its halfway (each +/-15%; halfway
-# is 50% except the Slider, 62%). That helper is a
+# is 50% except the Slider, 62%; open is 85%+ except Back Right, 80%+). That helper is a
 # Template binary sensor created in the HA UI (Settings > Helpers), with this
 # state template:
 #
 #   {% set tol = 15 %}{% set half = {'cover.honeycombblind_0004': 62} %}
+#   {% set open_from = {'cover.honeycombblind_0003': 80} %}
 #   {% set ns = namespace(odd=false) %}
 #   {% for b in ['cover.honeycombblind_0001','cover.honeycombblind_0002',
 #                'cover.honeycombblind_0003','cover.honeycombblind_0004'] %}
 #     {% set p = state_attr(b, 'current_position') | int(-1) %}
-#     {% set h = half.get(b, 50) %}
-#     {% if not ((0 <= p <= tol) or (p >= 100 - tol) or ((p - h) | abs <= tol)) %}
+#     {% set h = half.get(b, 50) %}{% set o = open_from.get(b, 100 - tol) %}
+#     {% if not ((0 <= p <= tol) or (p >= o) or ((p - h) | abs <= tol)) %}
 #       {% set ns.odd = true %}
 #     {% endif %}
 #   {% endfor %}{{ ns.odd }}
