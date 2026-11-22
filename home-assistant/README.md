@@ -5,7 +5,8 @@ edited in the HA UI; these files are here so the work isn't lost.
 
 | File | What it is | Where it lives in HA |
 |---|---|---|
-| `master_bedroom_blinds.yaml` | Blinds schedule: halfway 8:30 PM, close 10:15 PM, open 9 AM. Closing steps skip if any blind is in an in-between position (tolerance 10). | Automation *Master Bedroom Blinds Schedule* |
+| `master_bedroom_blinds.yaml` | Evening blinds schedule: 8:30 PM halfway (Slider 62%, blinds already down left alone), 10:15 PM close. Both skip while a blind is at an odd position (±15%; Back Right counts as open from 80%). | Automation *Master Bedroom Blinds Schedule* |
+| `master_bedroom_blinds_morning.yaml` | 9:00 AM open, no conditions, with a retry 90 s later for any blind that stopped short. | Automation *Master Bedroom Blinds Morning Open* |
 | `lifx_spot_zones_shell_command.yaml` | `shell_command.lifx_spot_zones` — sets zone 1/2/3 of every LIFX Spot to exact colours. HA's built-in LIFX integration only scatters a palette across Spot zones; this calls `set_matrix_colors` directly via the `lifx` library HA ships. | Bottom of `configuration.yaml` (needs a restart the first time `shell_command:` is added) |
 
 ## Garden LIFX zone controls (UI-created, not in files)
