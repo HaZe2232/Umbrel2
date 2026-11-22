@@ -1,6 +1,6 @@
 # Slider close prompt
 #
-# Every hour from 11 PM to 5 AM, if the Slider (cover.honeycombblind_0004)
+# Every hour from 10 PM to 5 AM, if the Slider (cover.honeycombblind_0004)
 # isn't closed, ask the iPhone 18 Pro Max whether to close it:
 #   - "Close it"   -> close it now
 #   - "Leave open" -> leave it; ask again at the next hour
@@ -11,7 +11,7 @@
 
 alias: Slider Close Prompt
 description: >-
-  Every hour from 11 PM to 5 AM, if the Slider isn't closed, asks the iPhone
+  Every hour from 10 PM to 5 AM, if the Slider isn't closed, asks the iPhone
   18 Pro Max whether to close it. 'Close it' closes it now; 'Leave open'
   leaves it until the next hour's prompt; no answer within 15 minutes closes
   it anyway.
@@ -23,6 +23,7 @@ trace:
 triggers:
   - trigger: time
     at:
+      - "22:00:00"
       - "23:00:00"
       - "00:00:00"
       - "01:00:00"
