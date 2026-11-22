@@ -3,7 +3,8 @@
 # Every hour from 10 PM to 5 AM, if the Slider (cover.honeycombblind_0004)
 # isn't closed, ask the iPhone 18 Pro Max whether to close it:
 #   - "Close it"   -> close it now
-#   - "Leave open" -> leave it; ask again at the next hour
+#   - "Leave open" -> leave it (and turn on Slider Keep Open Tonight so the
+#                    10:15 PM close skips it); ask again at the next hour
 #   - no answer within 15 minutes -> clear the prompt and close it anyway
 #
 # The button IDs include the run's context id, so a tap on an old prompt
@@ -84,6 +85,10 @@ actions:
       - condition: template
         value_template: "{{ wait.trigger is not none and wait.trigger.event.data.action == keep_id }}"
     then:
+      - alias: Tell the 10:15 PM close to skip the Slider
+        action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.slider_keep_open_tonight
       - stop: Leave open chosen
 
   - alias: "No answer: clear the prompt from the phone"
@@ -109,3 +114,7 @@ actions:
       - action: cover.close_cover
         target:
           entity_id: cover.honeycombblind_0004
+      - alias: Clear the keep-open flag
+        action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.slider_keep_open_tonight

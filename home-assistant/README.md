@@ -21,5 +21,11 @@ edited in the HA UI; these files are here so the work isn't lost.
   repaint the spots whenever a helper changes.
 - Dashboard: *Master Bedroom* → Garden Lights section.
 
+## Slider keep-open flag (UI-created)
+
+- `input_boolean.slider_keep_open_tonight`: turned on by choosing *Leave open* on the
+  phone prompt; the 10:15 PM close skips the Slider while it's on. Cleared when the
+  prompt closes the Slider and by the 9 AM open.
+
 Gotcha: values passed to the shell command are wrapped in single quotes in the scripts,
 because HA otherwise parses `"185,100,100,3500"` into a list and the arguments split.

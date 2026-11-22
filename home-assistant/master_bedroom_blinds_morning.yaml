@@ -3,6 +3,7 @@
 #   9:00 AM -> open all four blinds, every day, with no conditions.
 #              90 s later, any blind that didn't reach the top (below 85%,
 #              Back Right below 80%) gets a second open command.
+#              Also resets input_boolean.slider_keep_open_tonight.
 #
 # Kept separate from the evening schedule (master_bedroom_blinds.yaml) so that
 # nothing there -- the odd-position safety check, or that automation being
@@ -21,6 +22,10 @@ triggers:
     at: "09:00:00"
 
 actions:
+  - alias: Reset the Slider keep-open flag for the new day
+    action: input_boolean.turn_off
+    target:
+      entity_id: input_boolean.slider_keep_open_tonight
   - alias: Open all four
     action: cover.open_cover
     target:

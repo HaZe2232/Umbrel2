@@ -3,7 +3,9 @@
 #   8:30 PM  -> blinds still up go halfway (50%; the Slider's halfway is
 #               62%); blinds already
 #               down (15% or less) are left down
-#  10:15 PM  -> close all blinds fully
+#  10:15 PM  -> close all blinds fully, except the Slider while
+#               input_boolean.slider_keep_open_tonight is on (set by
+#               choosing 'Leave open' on the phone prompt)
 #   9:00 AM  -> separate automation: master_bedroom_blinds_morning.yaml
 #
 # The two closing steps are skipped while the helper
@@ -104,7 +106,7 @@ actions:
                 data:
                   position: 62
 
-      - alias: 10:15 PM — close (skipped if a blind is at an odd position)
+      - alias: 10:15 PM — close (Slider skipped if Keep Open Tonight is on; all skipped if a blind is at an odd position)
         conditions:
           - condition: trigger
             id: close
@@ -112,10 +114,19 @@ actions:
             entity_id: binary_sensor.master_bedroom_blinds_off_position
             state: "off"
         sequence:
-          - action: cover.close_cover
+          - alias: Close Back Left, Back Middle, Back Right
+            action: cover.close_cover
             target:
-              entity_id: &blinds
+              entity_id:
                 - cover.honeycombblind_0001
                 - cover.honeycombblind_0002
                 - cover.honeycombblind_0003
-                - cover.honeycombblind_0004
+          - alias: Close the Slider unless 'Leave open' was chosen
+            if:
+              - condition: state
+                entity_id: input_boolean.slider_keep_open_tonight
+                state: "off"
+            then:
+              - action: cover.close_cover
+                target:
+                  entity_id: cover.honeycombblind_0004
