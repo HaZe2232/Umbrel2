@@ -4,7 +4,8 @@
 #               62%); blinds already
 #               down (15% or less) are left down
 #  10:15 PM  -> close all blinds fully
-#   9:00 AM  -> open all blinds
+#   9:00 AM  -> open all blinds; 90 s later, any blind that didn't reach the
+#               top (below 85%, Back Right below 80%) gets a second open
 #
 # The two closing steps are skipped while the helper
 # binary_sensor.master_bedroom_blinds_off_position is ON, i.e. a blind sits
@@ -122,7 +123,7 @@ actions:
                 - cover.honeycombblind_0003
                 - cover.honeycombblind_0004
 
-      - alias: 9:00 AM — open
+      - alias: 9:00 AM — open, then retry any blind that stopped short
         conditions:
           - condition: trigger
             id: open
@@ -130,3 +131,53 @@ actions:
           - action: cover.open_cover
             target:
               entity_id: *blinds
+          - alias: Give the blinds time to finish opening
+            delay:
+              seconds: 90
+          - alias: Ask the blinds for fresh positions
+            action: homeassistant.update_entity
+            target:
+              entity_id: *blinds
+            continue_on_error: true
+          - delay:
+              seconds: 5
+          - alias: Retry Back Left if below 85%
+            if:
+              - condition: numeric_state
+                entity_id: cover.honeycombblind_0001
+                attribute: current_position
+                below: 85
+            then:
+              - action: cover.open_cover
+                target:
+                  entity_id: cover.honeycombblind_0001
+          - alias: Retry Back Middle if below 85%
+            if:
+              - condition: numeric_state
+                entity_id: cover.honeycombblind_0002
+                attribute: current_position
+                below: 85
+            then:
+              - action: cover.open_cover
+                target:
+                  entity_id: cover.honeycombblind_0002
+          - alias: Retry Back Right if below 80%
+            if:
+              - condition: numeric_state
+                entity_id: cover.honeycombblind_0003
+                attribute: current_position
+                below: 80
+            then:
+              - action: cover.open_cover
+                target:
+                  entity_id: cover.honeycombblind_0003
+          - alias: Retry Slider if below 85%
+            if:
+              - condition: numeric_state
+                entity_id: cover.honeycombblind_0004
+                attribute: current_position
+                below: 85
+            then:
+              - action: cover.open_cover
+                target:
+                  entity_id: cover.honeycombblind_0004
