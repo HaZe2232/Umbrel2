@@ -1,0 +1,110 @@
+# Slider close prompt
+#
+# Every hour from 11 PM to 5 AM, if the Slider (cover.honeycombblind_0004)
+# isn't closed, ask the iPhone 18 Pro Max whether to close it:
+#   - "Close it"   -> close it now
+#   - "Leave open" -> leave it; ask again at the next hour
+#   - no answer within 15 minutes -> clear the prompt and close it anyway
+#
+# The button IDs include the run's context id, so a tap on an old prompt
+# can't answer a newer one.
+
+alias: Slider Close Prompt
+description: >-
+  Every hour from 11 PM to 5 AM, if the Slider isn't closed, asks the iPhone
+  18 Pro Max whether to close it. 'Close it' closes it now; 'Leave open'
+  leaves it until the next hour's prompt; no answer within 15 minutes closes
+  it anyway.
+mode: single
+max_exceeded: silent
+trace:
+  stored_traces: 20
+
+triggers:
+  - trigger: time
+    at:
+      - "23:00:00"
+      - "00:00:00"
+      - "01:00:00"
+      - "02:00:00"
+      - "03:00:00"
+      - "04:00:00"
+      - "05:00:00"
+
+conditions:
+  - alias: Only if the Slider isn't already closed
+    condition: not
+    conditions:
+      - condition: state
+        entity_id: cover.honeycombblind_0004
+        state: closed
+
+actions:
+  - alias: Unique button IDs for this prompt
+    variables:
+      close_id: "SLIDER_CLOSE_{{ context.id }}"
+      keep_id: "SLIDER_KEEP_{{ context.id }}"
+
+  - alias: Ask on the iPhone
+    action: notify.mobile_app_iphone_18_pro_max
+    data:
+      title: Close the Slider?
+      message: >-
+        The Slider is {{ state_attr('cover.honeycombblind_0004', 'current_position') }}%
+        open. It will close in 15 minutes unless you choose Leave open.
+      data:
+        tag: slider_close_prompt
+        push:
+          interruption-level: time-sensitive
+        actions:
+          - action: "{{ close_id }}"
+            title: Close it
+          - action: "{{ keep_id }}"
+            title: Leave open
+
+  - alias: Wait up to 15 minutes for an answer
+    wait_for_trigger:
+      - trigger: event
+        event_type: mobile_app_notification_action
+        event_data:
+          action: "{{ close_id }}"
+      - trigger: event
+        event_type: mobile_app_notification_action
+        event_data:
+          action: "{{ keep_id }}"
+    timeout:
+      minutes: 15
+    continue_on_timeout: true
+
+  # Templates are needed here: there is no native condition for which
+  # notification button was tapped.
+  - alias: "Leave open was chosen: stop until next hour"
+    if:
+      - condition: template
+        value_template: "{{ wait.trigger is not none and wait.trigger.event.data.action == keep_id }}"
+    then:
+      - stop: Leave open chosen
+
+  - alias: "No answer: clear the prompt from the phone"
+    if:
+      - condition: template
+        value_template: "{{ wait.trigger is none }}"
+    then:
+      - action: notify.mobile_app_iphone_18_pro_max
+        data:
+          message: clear_notification
+          data:
+            tag: slider_close_prompt
+        continue_on_error: true
+
+  - alias: Close the Slider (Close it tapped, or no answer)
+    if:
+      - condition: not
+        conditions:
+          - condition: state
+            entity_id: cover.honeycombblind_0004
+            state: closed
+    then:
+      - action: cover.close_cover
+        target:
+          entity_id: cover.honeycombblind_0004
