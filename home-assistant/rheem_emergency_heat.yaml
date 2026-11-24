@@ -1,0 +1,41 @@
+# Rheem Emergency Heat (gas furnace only, heat pump locked out)
+#
+# The Rheem bridge runs esphome-econet firmware. Its HVAC climate entity has no
+# Emergency Heat mode (HA has no such hvac mode), but the firmware exposes an
+# `esphome.rheem_write_enum` action. Emergency Heat is thermostat datapoint
+# STATMODE = 5  (0 Heat, 1 Cool, 2 Auto, 3 Fan only, 4 Off, 5 Emergency Heat;
+# see esphome-econet issue #468).
+#
+# Pieces, all created in the HA UI:
+#   - input_boolean.rheem_emergency_heat_active  (tracks the state; the climate
+#     entity can't show it)
+#   - switch.master_bedroom_rheem_emergency_heat  (Template switch helper,
+#     linked to the Rheem device):
+#       state:     {{ is_state('input_boolean.rheem_emergency_heat_active', 'on') }}
+#       available: {{ is_state('binary_sensor.master_bedroom_rheem_microcontroller_connected', 'on') }}
+#       turn_on:   esphome.rheem_write_enum {datapoint_id: STATMODE, value: 5}
+#                  + input_boolean.turn_on
+#       turn_off:  input_boolean.turn_off
+#                  + climate.set_hvac_mode heat  (normal heat: heat pump first)
+#   - the automation below, which clears the flag if the mode is changed some
+#     other way (thermostat panel, HVAC card, ESP restart).
+
+alias: Rheem Emergency Heat Ended Elsewhere
+description: >-
+  The Rheem HVAC entity has no Emergency Heat mode, so it keeps showing its
+  previous mode while Emergency Heat is on. If that mode changes, Emergency
+  Heat is no longer active, so clear the flag behind the Emergency Heat switch.
+mode: single
+triggers:
+  - trigger: state
+    entity_id: climate.master_bedroom_rheem_hvac
+    not_from: [unavailable, unknown]
+    not_to: [unavailable, unknown]
+conditions:
+  - condition: state
+    entity_id: input_boolean.rheem_emergency_heat_active
+    state: "on"
+actions:
+  - action: input_boolean.turn_off
+    target:
+      entity_id: input_boolean.rheem_emergency_heat_active
