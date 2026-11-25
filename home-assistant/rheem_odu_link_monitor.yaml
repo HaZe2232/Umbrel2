@@ -1,0 +1,122 @@
+# Rheem ODU link monitor
+#
+# Catches each time the Rheem outdoor unit (ODU) stops sending data on the
+# EcoNet bus, so the cause of the "A006_C EcoNet ODU Communication Failure"
+# alarms can be pinned down.
+#
+# Built in the UI (not YAML) from three pieces:
+#
+#   1. Template binary sensor (Settings > Helpers > Template > Binary sensor)
+#        Name:         ODU Link  -> binary_sensor.master_bedroom_rheem_odu_link
+#        Device class: connectivity (shows Connected / Disconnected)
+#        Device:       the Rheem ESPHome bridge
+#        State:
+#          {% set s = states.sensor.master_bedroom_rheem_odu_pressure_suction %}
+#          {{ s is not none and (now() - s.last_reported).total_seconds() <= 120 }}
+#        Availability (additional options):
+#          {{ is_state('binary_sensor.master_bedroom_rheem_microcontroller_connected', 'on')
+#             and has_value('sensor.master_bedroom_rheem_odu_pressure_suction') }}
+#      ODU suction pressure normally reports every ~10 s (longest normal gap
+#      seen: ~21 s), so 2 minutes without a report means the ODU link is down.
+#      If the bridge itself is off the bus or offline, the sensor goes
+#      unavailable instead, so bridge problems don't look like ODU dropouts.
+#
+#   2. input_datetime.rheem_odu_link_lost_at (date + time): when the last ODU
+#      report arrived before a dropout, used to work out how long it lasted.
+#
+#   3. The automation below: a logbook entry and a quiet (passive) iPhone note
+#      when the link drops, with what the system was doing, and when it comes
+#      back, with how long it was gone and the thermostat's latest alarm.
+#      Both notes share a tag, so the "back" note replaces the "lost" one.
+#
+# Note: Home Assistant stores each `variables` block with its keys sorted
+# alphabetically, so values that depend on each other are in separate steps.
+
+alias: Rheem ODU Link Monitor
+description: >-
+  Logs and sends a quiet iPhone note each time the Rheem outdoor unit stops
+  sending data for more than 2 minutes (Rheem ODU Link goes to Disconnected),
+  with what the system was doing just before, and again when the data comes
+  back, with how long it was gone. Used to find out what triggers the ODU
+  communication dropouts.
+mode: queued
+max: 10
+trace:
+  stored_traces: 20
+triggers:
+  - trigger: state
+    entity_id: binary_sensor.master_bedroom_rheem_odu_link
+    to: "off"
+    id: lost
+  - trigger: state
+    entity_id: binary_sensor.master_bedroom_rheem_odu_link
+    from: "off"
+    to: "on"
+    id: back
+conditions: []
+actions:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: lost
+        sequence:
+          - variables:
+              last_report: >-
+                {{ as_local(states.sensor.master_bedroom_rheem_odu_pressure_suction.last_reported).strftime('%Y-%m-%d %H:%M:%S') }}
+              message: >-
+                No outdoor-unit data since
+                {{ as_local(states.sensor.master_bedroom_rheem_odu_pressure_suction.last_reported).strftime('%-I:%M:%S %p') }}.
+                System {{ state_translated('climate.master_bedroom_rheem_hvac') }} since
+                {{ as_local(states.climate.master_bedroom_rheem_hvac.last_changed).strftime('%a %-I:%M %p') }}
+                · operating mode {{ states('sensor.master_bedroom_rheem_operating_mode') }}
+                · Emergency Heat {{ states('input_boolean.rheem_emergency_heat_active') }}
+                · compressor stage {{ states('sensor.master_bedroom_rheem_compressor_stage') | int(0) }}
+          - alias: Remember when the data stopped
+            action: input_datetime.set_datetime
+            target:
+              entity_id: input_datetime.rheem_odu_link_lost_at
+            data:
+              datetime: "{{ last_report }}"
+          - action: logbook.log
+            data:
+              name: Rheem ODU link lost
+              message: "{{ message }}"
+              entity_id: binary_sensor.master_bedroom_rheem_odu_link
+          - action: notify.mobile_app_iphone_18_pro_max
+            continue_on_error: true
+            data:
+              title: Rheem outdoor unit link lost
+              message: "{{ message }}"
+              data:
+                tag: rheem_odu_link
+                push:
+                  interruption-level: passive
+      - conditions:
+          - condition: trigger
+            id: back
+        sequence:
+          - variables:
+              alarm: "{{ states('sensor.master_bedroom_rheem_alarm_history_1') }}"
+              lost_ts: "{{ state_attr('input_datetime.rheem_odu_link_lost_at', 'timestamp') | float(0) }}"
+              went_off_ts: "{{ trigger.from_state.last_changed.timestamp() }}"
+          - variables:
+              mins: "{{ ((now().timestamp() - lost_ts) / 60) | round(0) | int }}"
+          - variables:
+              message: >-
+                Data back at {{ now().strftime('%-I:%M:%S %p') }}{% if 0 <= went_off_ts - lost_ts <= 600 %}
+                after {{ mins }} min (no data since {{ lost_ts | timestamp_custom('%-I:%M:%S %p') }}){% endif %}.
+                Latest thermostat alarm: {{ alarm if alarm not in ['', 'unknown', 'unavailable'] else 'none' }}.
+          - action: logbook.log
+            data:
+              name: Rheem ODU link back
+              message: "{{ message }}"
+              entity_id: binary_sensor.master_bedroom_rheem_odu_link
+          - action: notify.mobile_app_iphone_18_pro_max
+            continue_on_error: true
+            data:
+              title: Rheem outdoor unit link back
+              message: "{{ message }}"
+              data:
+                tag: rheem_odu_link
+                push:
+                  interruption-level: passive
