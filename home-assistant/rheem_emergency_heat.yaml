@@ -16,7 +16,11 @@
 #       turn_on:   esphome.rheem_write_enum {datapoint_id: STATMODE, value: 5}
 #                  + input_boolean.turn_on
 #       turn_off:  input_boolean.turn_off
-#                  + climate.set_hvac_mode heat  (normal heat: heat pump first)
+#                  + climate.set_hvac_mode back to the mode the HVAC card shows
+#                    (the mode it was in before Emergency Heat; 'off' if the
+#                    card shows unknown/unavailable). Template:
+#                    {% set m = states('climate.master_bedroom_rheem_hvac') %}
+#                    {{ m if m in ['off', 'heat', 'cool', 'heat_cool', 'fan_only'] else 'off' }}
 #   - the automation below, which clears the flag if the mode is changed some
 #     other way (thermostat panel, HVAC card, ESP restart).
 
