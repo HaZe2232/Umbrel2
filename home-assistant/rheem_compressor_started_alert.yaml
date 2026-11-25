@@ -1,0 +1,56 @@
+# Rheem compressor started alert
+#
+# Every time the heat pump compressor starts (compressor stage goes to 1 or 2),
+# write a logbook entry and send a quiet ("passive": no sound, no wake) note to
+# the iPhone 18 Pro Max with the time, mode and outdoor temperature. If
+# Emergency Heat is on -- when the compressor should be locked out -- the note
+# is time-sensitive and flagged instead.
+#
+# Fires on a fresh start, including the first reading after the bridge
+# reconnects while the compressor is already running; stage 1 <-> 2 changes
+# don't fire.
+
+alias: Rheem Compressor Started Alert
+description: >-
+  Records every time the Rheem heat pump compressor starts: a logbook entry
+  plus a quiet notification on the iPhone 18 Pro Max. Time-sensitive instead
+  if Emergency Heat is on.
+mode: queued
+max: 5
+trace:
+  stored_traces: 20
+
+triggers:
+  - trigger: state
+    entity_id: sensor.master_bedroom_rheem_compressor_stage
+    to: ["1.0", "2.0"]
+    not_from: ["1.0", "2.0"]
+
+actions:
+  - alias: Snapshot the details
+    variables:
+      started: "{{ now().strftime('%-I:%M %p on %a %b %-d') }}"
+      stage: "{{ trigger.to_state.state | int(0) }}"
+      mode: "{{ states('sensor.master_bedroom_rheem_operating_mode') }}"
+      outdoor: "{{ states('sensor.master_bedroom_rheem_odu_outside_air_temperature') | float(0) | round(0) }}"
+      emergency: "{{ is_state('input_boolean.rheem_emergency_heat_active', 'on') }}"
+
+  - alias: Permanent record in the logbook
+    action: logbook.log
+    data:
+      name: Rheem compressor
+      entity_id: sensor.master_bedroom_rheem_compressor_stage
+      message: >-
+        started at {{ started }} — {{ mode }}, stage {{ stage }}, {{ outdoor }}°F
+        outside{{ ' (WHILE EMERGENCY HEAT WAS ON)' if emergency else '' }}
+
+  - alias: Tell the iPhone
+    action: notify.mobile_app_iphone_18_pro_max
+    data:
+      title: "{{ '⚠️ Compressor ran during Emergency Heat' if emergency else 'Rheem compressor started' }}"
+      message: "{{ started }} · {{ mode }}, stage {{ stage }} · {{ outdoor }}°F outside"
+      data:
+        tag: rheem_compressor_started
+        group: rheem
+        push:
+          interruption-level: "{{ 'time-sensitive' if emergency else 'passive' }}"
